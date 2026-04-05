@@ -14,7 +14,7 @@ load_dotenv()
 
 MODEL_PATH = os.getenv("MODEL_PATH", "D:/Works/Python/Qwen3_ASR_GUI/models/Qwen3-ASR-1.7B")
 DEVICE = os.getenv("DEVICE", "cuda")
-MAX_INFERENCE_BATCH_SIZE = os.getenv("MAX_INFERENCE_BATCH_SIZE", 8)
+MAX_INFERENCE_BATCH_SIZE = int(os.getenv("MAX_INFERENCE_BATCH_SIZE", 8))
 MAX_NEW_TOKENS = int(os.getenv("MAX_NEW_TOKENS", 256))
 
 class TranscriptionApp:
