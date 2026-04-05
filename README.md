@@ -5,7 +5,7 @@ This is a GUI programe for Qwen3-ASR
 # 使用说明
 安装依赖
 ```shell
-pip install -U qwen-asr modelscope
+pip install -U qwen-asr modelscope python-dotenv
 ```
 下载模型文件
 ```shell
