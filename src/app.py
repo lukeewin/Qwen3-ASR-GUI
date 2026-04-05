@@ -7,12 +7,15 @@ import os
 import threading
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
-
+from dotenv import load_dotenv
 import torch
 from qwen_asr import Qwen3ASRModel
+load_dotenv()
 
-MODEL_PATH = r"D:\Works\Python\Qwen3_ASR_GUI\models\Qwen3-ASR-1.7B"
-
+MODEL_PATH = os.getenv("MODEL_PATH", "D:/Works/Python/Qwen3_ASR_GUI/models/Qwen3-ASR-1.7B")
+DEVICE = os.getenv("DEVICE", "cuda")
+MAX_INFERENCE_BATCH_SIZE = os.getenv("MAX_INFERENCE_BATCH_SIZE", 8)
+MAX_NEW_TOKENS = int(os.getenv("MAX_NEW_TOKENS", 256))
 
 class TranscriptionApp:
     def __init__(self, root):
@@ -108,10 +111,10 @@ class TranscriptionApp:
         try:
             model = Qwen3ASRModel.from_pretrained(
                 MODEL_PATH,
-                dtype=torch.bfloat16,
-                device_map="cpu",
-                max_inference_batch_size=32,
-                max_new_tokens=256,
+                dtype=torch.bfloat16 if DEVICE == "cuda" else torch.float32,
+                device_map=DEVICE,
+                max_inference_batch_size=MAX_INFERENCE_BATCH_SIZE,
+                max_new_tokens=MAX_NEW_TOKENS,
             )
             self.model = model
             self.root.after(0, self._on_model_loaded_success)
@@ -185,6 +188,21 @@ class TranscriptionApp:
         thread = threading.Thread(target=self._transcribe_all, daemon=True)
         thread.start()
 
+    def _split_sentences(self, text: str) -> str:
+        """根据标点符号（。？！.!?）将文本分割为多行，每行一个句子，保留标点"""
+        # 定义中英文标点
+        punctuation = '。？！.!?'
+        sentences = []
+        current = []
+        for ch in text:
+            current.append(ch)
+            if ch in punctuation:
+                sentences.append(''.join(current).strip())
+                current = []
+        if current:
+            sentences.append(''.join(current).strip())
+        return '\n'.join(sentences)
+
     def _transcribe_all(self):
         total = len(self.input_files)
         for idx, file_path in enumerate(self.input_files):
@@ -193,13 +211,11 @@ class TranscriptionApp:
             try:
                 results = self.model.transcribe(audio=file_path, language=None)
                 text = results[0].text if results else ""
-                language = results[0].language if results else "unknown"
-
+                torch.cuda.empty_cache()
                 base_name = os.path.splitext(os.path.basename(file_path))[0]
                 output_file = os.path.join(self.output_dir, f"{base_name}.txt")
                 with open(output_file, "w", encoding="utf-8") as f:
-                    f.write(f"语言: {language}\n")
-                    f.write(f"转写文本:\n{text}\n")
+                    f.write(self._split_sentences(text))
 
             except Exception as e:
                 error_msg = f"转写失败: {str(e)}"
